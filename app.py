@@ -298,9 +298,9 @@ def generar_certificados_grupo(grupo_df, plantilla_bytes, plantilla_key, nombre_
     estudiantes_base, total_estudiantes, styles_config_by_template):
     certificados_generados = 0
 
-    # Aplicar marca de agua si la segunda letra es 'P'
+    # Aplicar marca de agua si la segunda letra es 'I'
     nombre_archivo = st.session_state.get('nombre_archivo', '')
-    aplicar_marca_agua = len(nombre_archivo) >= 2 and nombre_archivo[1].upper() == 'P'
+    aplicar_marca_agua = len(nombre_archivo) >= 2 and nombre_archivo[1].upper() == 'I'
     
     # Ruta a la marca de agua
     watermark_path = os.path.join("watermarks", "marca_agua.pdf")
