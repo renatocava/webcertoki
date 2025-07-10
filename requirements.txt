@@ -38,3 +38,5 @@ typing_extensions==4.14.1
 tzdata==2025.2
 urllib3==2.5.0
 watchdog==6.0.0
+rpds-py==0.26.0
+fpdf==1.7.2

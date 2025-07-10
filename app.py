@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import PyPDF2
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.colors import HexColor
@@ -34,10 +35,8 @@ def register_custom_font():
         st.info("Fuente Trebuchet MS no encontrada. Usando fuente por defecto.")
         return False
 
-
 TREBUCHET_AVAILABLE = register_custom_font()
 styles_config = None
-
 
 # Diccionario de meses
 def mes_en_espanol(fecha):
@@ -60,6 +59,46 @@ def mes_en_espanol(fecha):
     mes_espanol = meses.get(mes_ingles, mes_ingles)
     return fecha.strftime(f"%d de {mes_espanol} del %Y")
 
+# Función para agregar marca de agua (PDF)
+def agregar_marca_agua(pdf_bytes, watermark_path):
+    try:
+        pdf_reader = PyPDF2.PdfReader(pdf_bytes)
+        watermark_reader = PyPDF2.PdfReader(watermark_path)
+        
+        watermark_page = watermark_reader.pages[0]
+        
+        pdf_writer = PyPDF2.PdfWriter()
+        
+        for page_num in range(len(pdf_reader.pages)):
+            page = pdf_reader.pages[page_num]
+            
+            # Determinar orientación de la página
+            page_width = float(page.mediabox.width)
+            page_height = float(page.mediabox.height)
+            is_landscape = page_width > page_height
+            
+            # Crear una copia de la marca de agua para no modificar la original
+            if is_landscape:
+                landscape_watermark_path = os.path.join("watermarks", "marca_agua_landscape.pdf")
+                if os.path.exists(landscape_watermark_path):
+                    landscape_watermark_reader = PyPDF2.PdfReader(landscape_watermark_path)
+                    watermark = landscape_watermark_reader.pages[0]
+                else:
+                    watermark = watermark_page
+            else:
+                watermark = watermark_page
+            
+            page.merge_page(watermark)
+            pdf_writer.add_page(page)
+        
+        result_pdf = BytesIO()
+        pdf_writer.write(result_pdf)
+        result_pdf.seek(0)
+        
+        return result_pdf
+    except Exception as e:
+        st.error(f"Error al aplicar marca de agua: {e}")
+        return pdf_bytes
 
 # Función para cargar plantillas
 def cargar_plantillas():
@@ -92,7 +131,6 @@ def cargar_plantillas():
         st.error(f"❌ Se necesitan 4 plantillas, solo se encontraron {len(plantillas)}")
         return None
 
-
 # Función para clasificar estudiantes por criterios
 def clasificar_estudiantes_por_nota(df, nombre_archivo):
     grupos = {
@@ -118,18 +156,8 @@ def clasificar_estudiantes_por_nota(df, nombre_archivo):
         grupos['grupo_1'] = df.copy()
         st.info(f"📋 **Archivo detectado con prefijo 'P'**: Todos los certificados usarán el formato Progresivo")
 
-        # st.subheader("📊 Distribución de estudiantes por grupo:")
-        # st.write(f"**Grupo 1** (Progresivo): {len(df)} estudiantes - **TODOS por prefijo 'R'**")
-        # for i in [2, 3, 4]:
-        #    st.write(f"**Grupo {i}** (Fondo {i}): 0 estudiantes")
-
     else:
-        # Convertir nota final a numérico
         df['nota_final_num'] = pd.to_numeric(df['nota final'], errors='coerce')
-
-        # Clasificar estudiantes según las condiciones originales
-        # Grupo 1: Nota = 13 (solo cuando NO empieza con R) - Respaldo
-        # grupos['grupo_1'] = df[df['nota_final_num'] == 0].copy()
 
         # Grupo 2: Nota < 13 - Participación
         grupos['grupo_2'] = df[df['nota_final_num'] < 13].copy()
@@ -141,15 +169,7 @@ def clasificar_estudiantes_por_nota(df, nombre_archivo):
         grupos['grupo_4'] = df_nota_alta[
             df_nota_alta['grado'].str.lower().str.strip().isin(['4p', '5p', '1s', '2s', '3s', '4s', '5s'])].copy()
 
-        # st.subheader("📊 Distribución de estudiantes por grupo (clasificación normal):")
-        # for i, (grupo, datos) in enumerate(grupos.items(), 1):
-        #    if not datos.empty:
-        #        st.write(f"**Grupo {i}**: {len(datos)} estudiantes")
-        #    else:
-        #        st.write(f"**Grupo {i}**: 0 estudiantes")
-
     return grupos
-
 
 # Función para procesar el archivo Excel Base
 def procesar_excel_inicial(uploaded_file):
@@ -176,10 +196,14 @@ def procesar_excel_inicial(uploaded_file):
 
         df_procesado.columns = df_procesado.columns.str.lower()
 
-        # Crear la columna nombre_certificado combinando Nombre, Paterno y Materno
+        # Reemplazar 'NP' por 0 en la columna 'nota final'
+        if 'nota final' in df_procesado.columns:
+            df_procesado['nota final'] = df_procesado['nota final'].apply(
+                lambda x: 0 if isinstance(x, str) and x.strip().upper() == 'NP' else x
+            )
+
         df_procesado['nombre_certificado'] = df_procesado['nombre'].fillna('').str.strip() + ' ' + df_procesado[
             'paterno'].fillna('').str.strip() + ' ' + df_procesado['materno'].fillna('').str.strip()
-        # df_procesado = df_procesado.drop(columns=['nombre', 'paterno', 'materno'])
 
         columnas = df_procesado.columns.tolist()
         columnas.remove('nombre_certificado')
@@ -191,7 +215,6 @@ def procesar_excel_inicial(uploaded_file):
 
     except Exception as e:
         return None, False, f"Error al procesar el archivo: {str(e)}"
-
 
 # Acomodar el texto en múltiples líneas para que se ajuste al ancho máximo
 def wrap_text_to_width(canvas, text, font_name, font_size, max_width_mm):
@@ -218,7 +241,6 @@ def wrap_text_to_width(canvas, text, font_name, font_size, max_width_mm):
         lines.append(' '.join(current_line))
 
     return lines
-
 
 # Dibuja texto multilínea usando la configuración de estilos específica
 def draw_multiline_text(canvas, text, style_key, page_width, styles_config, max_width_mm=None):
@@ -271,11 +293,20 @@ def draw_multiline_text(canvas, text, style_key, page_width, styles_config, max_
 
     return line_height * len(lines)
 
-
 # Genera certificados para un grupo específico con su plantilla y estilos correspondientes
 def generar_certificados_grupo(grupo_df, plantilla_bytes, plantilla_key, nombre_grupo, zip_file, progress_bar,
-                               estudiantes_base, total_estudiantes, styles_config_by_template):
+    estudiantes_base, total_estudiantes, styles_config_by_template):
     certificados_generados = 0
+
+    # Aplicar marca de agua si la segunda letra es 'P'
+    nombre_archivo = st.session_state.get('nombre_archivo', '')
+    aplicar_marca_agua = len(nombre_archivo) >= 2 and nombre_archivo[1].upper() == 'P'
+    
+    # Ruta a la marca de agua
+    watermark_path = os.path.join("watermarks", "marca_agua.pdf")
+    if aplicar_marca_agua and not os.path.exists(watermark_path):
+        st.warning(f"⚠️ No se encontró el archivo de marca de agua en {watermark_path}. Se generarán PDFs sin marca de agua.")
+        aplicar_marca_agua = False
 
     # Obtener la configuración de estilos para esta plantilla
     styles_config = styles_config_by_template[plantilla_key]
@@ -323,6 +354,11 @@ def generar_certificados_grupo(grupo_df, plantilla_bytes, plantilla_key, nombre_
             c.save()
             pdf_bytes = pdf_buffer.getvalue()
 
+            # Aplicar marca de agua si es necesario
+            if aplicar_marca_agua:
+                pdf_buffer = agregar_marca_agua(BytesIO(pdf_bytes), watermark_path)
+                pdf_bytes = pdf_buffer.getvalue()
+
             # Añadir al ZIP
             # Si es el grupo 2 (Constancias), guardar en la subcarpeta "Constancias"
             # pdf_name = f"{nombre.replace(' ', '_')}.pdf"
@@ -351,7 +387,6 @@ def generar_certificados_grupo(grupo_df, plantilla_bytes, plantilla_key, nombre_
             st.error(f"Error generando certificado para {nombre}: {e}")
 
     return certificados_generados
-
 
 # Configuración de la web
 st.set_page_config(page_title="Generador de Certificados", layout="centered")
@@ -609,16 +644,18 @@ if st.session_state.df_procesado is not None:
                 st.success("🎉 Todos los certificados han sido generados correctamente y están listos para su descarga.")
 
                 nombre_archivo = st.session_state.get('nombre_archivo', '')
-                if nombre_archivo and nombre_archivo.upper().startswith('P'):
-                    zip_filename = "CERTIFICADOS_PROGRESIVOS.zip"
+                nombre_base = os.path.splitext(nombre_archivo)[0] if nombre_archivo else "CERTIFICADOS"
+                
+                if len(nombre_base) >= 2 and nombre_base[1].upper() == 'P':
+                    zip_filename = f"{nombre_base}_PRELIMINAR.zip"
                 else:
-                    zip_filename = "CERTIFICADOS_DIPLOMAS_CONSTANCIAS.zip"
+                    zip_filename = f"{nombre_base}.zip"
 
                 st.download_button(
-                    label="📥 Descargar todos los certificados (ZIP)",
-                    data=zip_buffer,
-                    file_name=zip_filename,
-                    mime="application/zip"
+                label="📥 Descargar todos los certificados (ZIP)",
+                data=zip_buffer,
+                file_name=zip_filename,
+                mime="application/zip"
                 )
     else:
         st.error(
