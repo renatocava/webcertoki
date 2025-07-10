@@ -40,3 +40,5 @@ urllib3==2.5.0
 watchdog==6.0.0
 rpds-py==0.26.0
 fpdf==1.7.2
+PyMuPDF==1.24.2
+PyMuPDFb==1.24.1
