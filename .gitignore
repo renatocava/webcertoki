@@ -1,0 +1,11 @@
+*.log
+*.pyc
+.env
+venv/
+mst_v
+build/
+dist/
+*.spec
+#*.ico
+output/
+certificados_out/
