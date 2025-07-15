@@ -438,7 +438,7 @@ if st.session_state.df_procesado is not None:
                 'curso': {
                     'font_family': 'Trebuchet',
                     'font_size': 32,
-                    'color': '#11959f',
+                    'color': '#000000', #11959f
                     'x': 52,
                     'y': 129,
                     'max_width': 220,
@@ -447,7 +447,7 @@ if st.session_state.df_procesado is not None:
                 'nombre': {
                     'font_family': 'Trebuchet',
                     'font_size': 25,
-                    'color': '#004064',
+                    'color': '#000000', #004064
                     'x': 52,
                     'y': 85,
                     'max_width': 210
@@ -475,7 +475,7 @@ if st.session_state.df_procesado is not None:
                 'curso': {
                     'font_family': 'Trebuchet',
                     'font_size': 30.5,
-                    'color': '#11959f',
+                    'color': '#000000', #11959f
                     'x': 105,
                     'y': 185,
                     'max_width': 160,
@@ -484,7 +484,7 @@ if st.session_state.df_procesado is not None:
                 'nombre': {
                     'font_family': 'Trebuchet',
                     'font_size': 29,
-                    'color': '#004064',
+                    'color': '#000000', #004064
                     'x': 105,
                     'y': 131,
                     'max_width': 160,
@@ -513,7 +513,7 @@ if st.session_state.df_procesado is not None:
                 'curso': {
                     'font_family': 'Trebuchet',
                     'font_size': 30.5,
-                    'color': '#11959f',
+                    'color': '#000000', #11959f
                     'x': 148,
                     'y': 117,
                     'max_width': 245,
@@ -522,7 +522,7 @@ if st.session_state.df_procesado is not None:
                 'nombre': {
                     'font_family': 'Trebuchet',
                     'font_size': 29,
-                    'color': '#004064',
+                    'color': '#000000', #004064
                     'x': 148,
                     'y': 75,
                     'max_width': 245,
@@ -551,7 +551,7 @@ if st.session_state.df_procesado is not None:
                 'curso': {
                     'font_family': 'Trebuchet',
                     'font_size': 30.5,
-                    'color': '#11959f',
+                    'color': '#000000', #11959f
                     'x': 148,
                     'y': 117,
                     'max_width': 245,
@@ -560,7 +560,7 @@ if st.session_state.df_procesado is not None:
                 'nombre': {
                     'font_family': 'Trebuchet',
                     'font_size': 29,
-                    'color': '#004064',
+                    'color': '#000000', #004064
                     'x': 148,
                     'y': 75,
                     'max_width': 245,
