@@ -191,7 +191,7 @@ def procesar_excel_inicial(uploaded_file):
 
         # Conservar solo las columnas A-I y O-S
         if len(df_procesado.columns) > 19:
-            columnas_a_conservar = list(range(9)) + list(range(14, 19))
+            columnas_a_conservar = list(range(9)) + list(range(14, 20))
             df_procesado = df_procesado.iloc[:, columnas_a_conservar]
 
         df_procesado.columns = df_procesado.columns.str.lower()
@@ -330,6 +330,12 @@ def generar_certificados_grupo(grupo_df, plantilla_bytes, plantilla_key, nombre_
                 else f"GEN-{i + 1:03}"
             )
 
+            # Extraer valores para la variable de horas, sólo si es para "Progresivos" (fondo_1)
+            horas = "horas_progresivo"
+            horas_progresivo = ""
+            if plantilla_key == 'fondo_1' and horas in row and pd.notnull(row[horas]):
+                horas_progresivo = str(row[horas])
+
             # Crear archivo temporal con la plantilla
             with NamedTemporaryFile(delete=False, suffix=".png") as tmp_img:
                 tmp_img.write(plantilla_bytes)
@@ -348,6 +354,10 @@ def generar_certificados_grupo(grupo_df, plantilla_bytes, plantilla_key, nombre_
             draw_multiline_text(c, curso, 'curso', page_width, styles_config, styles_config['curso']['max_width'])
             draw_multiline_text(c, f"Lima, {fecha}", 'fecha', page_width, styles_config)
 
+            # Se considera la variable horas si es para el fondo_1
+            if plantilla_key == 'fondo_1' and horas_progresivo:
+                draw_multiline_text(c, horas_progresivo, 'horas', page_width, styles_config)
+            
             if plantilla_key != 'fondo_2':
                 draw_multiline_text(c, f"Certificado Nº {numero}", 'numero', page_width, styles_config)
 
@@ -467,6 +477,14 @@ if st.session_state.df_procesado is not None:
                     'color': '#004064',
                     'x': 52,
                     'y': 27,
+                    'max_width': None
+                },
+                'horas': {
+                    'font_family': 'Trebuchet',
+                    'font_size': 15.5,
+                    'color': '#004064',
+                    'x': 132.5,
+                    'y': 65.2,
                     'max_width': None
                 },
                 'orientation': 'landscape'  # Orientación horizontal
