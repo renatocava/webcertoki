@@ -18,7 +18,10 @@ if 'grupos' not in st.session_state:
     st.session_state.grupos = None
 if 'plantillas' not in st.session_state:
     st.session_state.plantillas = None
-
+if 'certificados_generados' not in st.session_state:
+    st.session_state.certificados_generados = False
+if 'zip_buffer' not in st.session_state:
+    st.session_state.zip_buffer = None
 
 # Registrar fuente personalizada
 def register_custom_font():
@@ -398,52 +401,23 @@ def generar_certificados_grupo(grupo_df, plantilla_bytes, plantilla_key, nombre_
 
     return certificados_generados
 
-# Configuración de la web
-st.set_page_config(page_title="Generador de Certificados", layout="centered")
-st.title("🎓 Generador de Certificados PDF con Plantillas Automáticas")
+# Función para generar todos los certificados
+def generar_todos_certificados():
+    if st.session_state.grupos and st.session_state.plantillas:
+        st.info("Generando certificados por grupos...")
 
-# SECCIÓN 1: Preprocesamiento del Excel
-st.header("1️⃣ Subir y procesar archivo Excel")
-uploaded_file = st.file_uploader("Selecciona un archivo Excel", type=["xlsx"])
+        total_estudiantes = sum(len(grupo) for grupo in st.session_state.grupos.values() if not grupo.empty)
+        progress_bar = st.progress(0)
+        estudiantes_procesados = 0
 
-if uploaded_file:
-    st.subheader("📊 Vista previa del archivo original")
-    df_original = pd.read_excel(uploaded_file)
-    st.write(f"**Dimensiones originales:** {df_original.shape[0]} filas x {df_original.shape[1]} columnas")
-    st.write(f"**Nombre del archivo:** {uploaded_file.name}")
-    st.dataframe(df_original.head(15))
+        zip_buffer = BytesIO()
 
-    if st.button("🔄 Procesar archivo"):
-        with st.spinner("Procesando archivo..."):
-            df_procesado, exito, mensaje = procesar_excel_inicial(uploaded_file)
+        with ZipFile(zip_buffer, "a") as zip_file:
+            # Crear directorio para constancias
+            zip_file.writestr("Constancias/", "")
 
-        if exito:
-            st.session_state.df_procesado = df_procesado
-            st.session_state.nombre_archivo = uploaded_file.name
-
-            # Resetear estados cuando se procesa un nuevo archivo
-            st.session_state.grupos = None
-            st.session_state.plantillas = None
-            st.success(mensaje)
-            st.subheader("✅ Archivo procesado - Vista previa de datos limpios")
-            st.write(f"**Dimensiones procesadas:** {df_procesado.shape[0]} filas x {df_procesado.shape[1]} columnas")
-            st.dataframe(df_procesado)
-
-        else:
-            st.error(mensaje)
-
-# SECCIÓN 2: Clasificación y generación de certificados
-if st.session_state.df_procesado is not None:
-    # st.header("2️⃣ Clasificar las plantillas y generar certificados")
-
-    # Cargar plantillas automáticamente
-    if st.session_state.plantillas is None:
-        st.session_state.plantillas = cargar_plantillas()
-    plantillas = st.session_state.plantillas
-
-    if plantillas:
-        # Configuración de estilos
-        styles_config_by_template = {
+            # Configuración de estilos
+            styles_config_by_template = {
             "fondo_1": {
                 'curso': {
                     'font_family': 'Trebuchet',
@@ -605,79 +579,110 @@ if st.session_state.df_procesado is not None:
             }
         }
 
-        # Clasificar estudiantes
-        if st.session_state.grupos is None:
-            # Usar el nombre del archivo guardado en session_state
-            nombre_archivo = st.session_state.get('nombre_archivo', '')
+            # Mapeo de grupos a plantillas
+            mapeo_plantillas = {
+                'grupo_1': 'fondo_1',  # Progresiva
+                'grupo_2': 'fondo_2',  # Participación Nota < 13
+                'grupo_3': 'fondo_3',  # Base - Nota ≥ 13 y Grado = 1P-3P
+                'grupo_4': 'fondo_4'  # Base - Nota ≥ 13 y Grado = 4P-5S
+            }
+
+            for grupo_nombre, grupo_df in st.session_state.grupos.items():
+                if not grupo_df.empty:
+                    plantilla_key = mapeo_plantillas[grupo_nombre]
+                    plantilla_bytes = st.session_state.plantillas[plantilla_key]
+
+                    st.write(f"Procesando {grupo_nombre} ({len(grupo_df)} estudiantes) con plantilla {plantilla_key}...")
+
+                    # Generar certificados pasando la configuración de estilos
+                    certificados_gen = generar_certificados_grupo(
+                        grupo_df,
+                        plantilla_bytes,
+                        plantilla_key,
+                        grupo_nombre,
+                        zip_file,
+                        progress_bar,
+                        estudiantes_procesados,
+                        total_estudiantes,
+                        styles_config_by_template
+                    )
+
+                    estudiantes_procesados += len(grupo_df)
+
+                    st.success(f"✅ {grupo_nombre}: {certificados_gen} certificados generados con estilo {plantilla_key}")
+
+        zip_buffer.seek(0)
+        st.success("🎉 Todos los certificados han sido generados correctamente y están listos para su descarga.")
+        
+        st.session_state.zip_buffer = zip_buffer
+        st.session_state.certificados_generados = True
+        
+        return True
+    return False
+
+
+# Configuración de la web
+st.set_page_config(page_title="Generador de Certificados", layout="centered")
+st.title("🎓 Generador de Certificados PDF con Plantillas Automáticas")
+
+# Preprocesamiento del Excel
+st.header("📤 Subir y procesar archivo Excel")
+uploaded_file = st.file_uploader("Selecciona un archivo Excel", type=["xlsx"])
+
+if uploaded_file:
+    st.subheader("📊 Vista previa del archivo original")
+    df_original = pd.read_excel(uploaded_file)
+    st.write(f"**Dimensiones originales:** {df_original.shape[0]} filas x {df_original.shape[1]} columnas")
+    st.write(f"**Nombre del archivo:** {uploaded_file.name}")
+    st.dataframe(df_original.head(15))
+
+    # Procesar automáticamente el archivo
+    with st.spinner("Procesando archivo..."):
+        df_procesado, exito, mensaje = procesar_excel_inicial(uploaded_file)
+        
+        if exito:
+            st.session_state.df_procesado = df_procesado
+            st.session_state.nombre_archivo = uploaded_file.name
+            
+            # Resetear estados cuando se procesa un nuevo archivo
+            st.session_state.grupos = None
+            st.session_state.plantillas = None
+            st.session_state.certificados_generados = False
+            st.session_state.zip_buffer = None
+            
+            st.success(mensaje)
+            st.subheader("✅ Archivo procesado - Vista previa de datos limpios")
+            st.write(f"**Dimensiones procesadas:** {df_procesado.shape[0]} filas x {df_procesado.shape[1]} columnas")
+            st.dataframe(df_procesado)
+            
+            # Cargar plantillas automáticamente
+            st.session_state.plantillas = cargar_plantillas()
+            
+            # Clasificar estudiantes automáticamente
+            nombre_archivo = st.session_state.nombre_archivo
             st.session_state.grupos = clasificar_estudiantes_por_nota(st.session_state.df_procesado, nombre_archivo)
-        grupos = st.session_state.grupos
+            
+            # Generar certificados automáticamente
+            with st.spinner("Generando certificados..."):
+                generar_todos_certificados()
+        else:
+            st.error(mensaje)
 
-        if grupos:
-            if st.button("🚀 Generar Certificados por Grupos"):
-                st.info("Generando certificados por grupos...")
-
-                total_estudiantes = sum(len(grupo) for grupo in grupos.values() if not grupo.empty)
-                progress_bar = st.progress(0)
-                estudiantes_procesados = 0
-
-                zip_buffer = BytesIO()
-
-                with ZipFile(zip_buffer, "a") as zip_file:
-
-                    # Mapeo de grupos a plantillas
-                    mapeo_plantillas = {
-                        'grupo_1': 'fondo_1',  # Progresiva
-                        'grupo_2': 'fondo_2',  # Participación Nota < 13
-                        'grupo_3': 'fondo_3',  # Base - Nota ≥ 13 y Grado = 1P-3P
-                        'grupo_4': 'fondo_4'  # Base - Nota ≥ 13 y Grado = 4P-5S
-                    }
-
-                    for grupo_nombre, grupo_df in grupos.items():
-                        if not grupo_df.empty:
-                            plantilla_key = mapeo_plantillas[grupo_nombre]
-                            plantilla_bytes = plantillas[plantilla_key]
-
-                            st.write(
-                                f"Procesando {grupo_nombre} ({len(grupo_df)} estudiantes) con plantilla {plantilla_key}...")
-
-                            # Generar certificados pasando la configuración de estilos
-                            certificados_gen = generar_certificados_grupo(
-                                grupo_df,
-                                plantilla_bytes,
-                                plantilla_key,
-                                grupo_nombre,
-                                zip_file,
-                                progress_bar,
-                                estudiantes_procesados,
-                                total_estudiantes,
-                                styles_config_by_template
-                            )
-
-                            estudiantes_procesados += len(grupo_df)
-
-                            st.success(
-                                f"✅ {grupo_nombre}: {certificados_gen} certificados generados con estilo {plantilla_key}")
-
-                zip_buffer.seek(0)
-                st.success("🎉 Todos los certificados han sido generados correctamente y están listos para su descarga.")
-
-                nombre_archivo = st.session_state.get('nombre_archivo', '')
-                nombre_base = os.path.splitext(nombre_archivo)[0] if nombre_archivo else "CERTIFICADOS"
-                
-                if len(nombre_base) >= 2 and nombre_base[1].upper() == 'P':
-                    zip_filename = f"{nombre_base}_PRELIMINAR.zip"
-                else:
-                    zip_filename = f"{nombre_base}.zip"
-
-                st.download_button(
-                label="📥 Descargar todos los certificados (ZIP)",
-                data=zip_buffer,
-                file_name=zip_filename,
-                mime="application/zip"
-                )
+# Mostrar botón de descarga si los certificados fueron generados
+if st.session_state.certificados_generados and st.session_state.zip_buffer:
+    nombre_archivo = st.session_state.get('nombre_archivo', '')
+    nombre_base = os.path.splitext(nombre_archivo)[0] if nombre_archivo else "CERTIFICADOS"
+    
+    if len(nombre_base) >= 2 and nombre_base[1].upper() == 'P':
+        zip_filename = f"{nombre_base}_PRELIMINAR.zip"
     else:
-        st.error(
-            "❌ No se pudieron cargar las plantillas. Verifica que la carpeta 'plantillas' existe y contiene los 4 archivos de fondo.")
-
-else:
-    st.info("👆 Primero sube y procesa un archivo Excel para continuar.")
+        zip_filename = f"{nombre_base}.zip"
+    
+    st.download_button(
+        label="📥 Descargar todos los certificados (ZIP)",
+        data=st.session_state.zip_buffer,
+        file_name=zip_filename,
+        mime="application/zip"
+    )
+elif not uploaded_file:
+    st.info("👆 Sube un archivo Excel para generar los certificados automáticamente.")
