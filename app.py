@@ -140,7 +140,7 @@ def clasificar_estudiantes_por_nota(df, nombre_archivo):
         'grupo_1': pd.DataFrame(),  # Progresivo
         'grupo_2': pd.DataFrame(),  # Nota < 13 / Participación
         'grupo_3': pd.DataFrame(),  # Nota ≥ 13 y Grado = v1
-        'grupo_4': pd.DataFrame()  # Nota ≥ 13 y Grado = v2
+        'grupo_4': pd.DataFrame()   # Nota ≥ 13 y Grado = v2
     }
 
     if 'nota final' not in df.columns:
@@ -180,6 +180,13 @@ def procesar_excel_inicial(uploaded_file):
     Procesa el archivo Excel eliminando las primeras 9 filas y columnas J-N y desde la T
     """
     try:
+        # Lista de columnas
+        columnas_requeridas = [
+            'nro', 'paterno', 'materno', 'nombre', 'grado', 'sección', 'curso', 
+            'nota lab', 'lista de asistencia', 'nota de examen cibertec', 'nota final', 
+            'observación sobre nota desaprobatoria', 'status', 'numeración', 'horas_progresivo'
+        ]
+        
         df_original = pd.read_excel(uploaded_file)
 
         # Eliminar las primeras 11 filas (índices 0-10, quedando la fila 12 como cabecera)
@@ -188,16 +195,13 @@ def procesar_excel_inicial(uploaded_file):
         # Resetear el índice para que la nueva primera fila sea el índice 0
         df_procesado = df_procesado.reset_index(drop=True)
 
-        # Usar la primera fila como nombres de columnas
-        df_procesado.columns = df_procesado.iloc[0]
+        # Usar la primera fila como cabecera (Antigua fila 12)
+        df_procesado.columns = df_procesado.iloc[0].str.lower()
         df_procesado = df_procesado.drop(df_procesado.index[0]).reset_index(drop=True)
-
-        # Conservar solo las columnas A-I y O-S
-        if len(df_procesado.columns) > 19:
-            columnas_a_conservar = list(range(9)) + list(range(14, 20))
-            df_procesado = df_procesado.iloc[:, columnas_a_conservar]
-
-        df_procesado.columns = df_procesado.columns.str.lower()
+        
+        # Filtrar solo las columnas requeridas que existen en el dataframe
+        columnas_existentes = [col for col in columnas_requeridas if col in df_procesado.columns]
+        df_procesado = df_procesado[columnas_existentes]
 
         # Reemplazar 'NP' por 0 en la columna 'nota final'
         if 'nota final' in df_procesado.columns:
@@ -205,14 +209,17 @@ def procesar_excel_inicial(uploaded_file):
                 lambda x: 0 if isinstance(x, str) and x.strip().upper() == 'NP' else x
             )
 
+        # Crear columna nombre_certificado
         df_procesado['nombre_certificado'] = df_procesado['nombre'].fillna('').str.strip() + ' ' + df_procesado[
             'paterno'].fillna('').str.strip() + ' ' + df_procesado['materno'].fillna('').str.strip()
 
-        columnas = df_procesado.columns.tolist()
-        columnas.remove('nombre_certificado')
-        posicion_nro = columnas.index('nro')
-        columnas.insert(posicion_nro + 1, 'nombre_certificado')
-        df_procesado = df_procesado[columnas]
+        # Reordenar columnas para poner nombre_certificado después de nro
+        if 'nro' in df_procesado.columns:
+            columnas = df_procesado.columns.tolist()
+            columnas.remove('nombre_certificado')
+            posicion_nro = columnas.index('nro')
+            columnas.insert(posicion_nro + 1, 'nombre_certificado')
+            df_procesado = df_procesado[columnas]
 
         return df_procesado, True, "Archivo procesado correctamente"
 
@@ -373,9 +380,6 @@ def generar_certificados_grupo(grupo_df, plantilla_bytes, plantilla_key, nombre_
                 pdf_bytes = pdf_buffer.getvalue()
 
             # Añadir al ZIP
-            # Si es el grupo 2 (Constancias), guardar en la subcarpeta "Constancias"
-            # pdf_name = f"{nombre.replace(' ', '_')}.pdf"
-            # zip_file.writestr(pdf_name, pdf_bytes)
             if plantilla_key == 'fondo_2':
                 pdf_name = f"Constancias/{nombre.strip().replace(' ', '_') + '_' + curso[0:11].replace(' ', '_')}.pdf"
             else:
@@ -467,7 +471,7 @@ def generar_todos_certificados():
                 'curso': {
                     'font_family': 'Trebuchet',
                     'font_size': 30.5,
-                    'color': '#000000', #11959f
+                    'color': '#000000',
                     'x': 105,
                     'y': 185,
                     'max_width': 160,
@@ -476,9 +480,9 @@ def generar_todos_certificados():
                 'nombre': {
                     'font_family': 'Trebuchet',
                     'font_size': 29,
-                    'color': '#000000', #004064
+                    'color': '#000000',
                     'x': 105,
-                    'y': 131,
+                    'y': 133,
                     'max_width': 160,
                     'bold': True
                 },
@@ -505,7 +509,7 @@ def generar_todos_certificados():
                 'curso': {
                     'font_family': 'Trebuchet',
                     'font_size': 30.5,
-                    'color': '#000000', #11959f
+                    'color': '#000000',
                     'x': 148,
                     'y': 117,
                     'max_width': 245,
@@ -514,7 +518,7 @@ def generar_todos_certificados():
                 'nombre': {
                     'font_family': 'Trebuchet',
                     'font_size': 29,
-                    'color': '#000000', #004064
+                    'color': '#000000',
                     'x': 148,
                     'y': 75,
                     'max_width': 245,
@@ -543,7 +547,7 @@ def generar_todos_certificados():
                 'curso': {
                     'font_family': 'Trebuchet',
                     'font_size': 30.5,
-                    'color': '#000000', #11959f
+                    'color': '#000000',
                     'x': 148,
                     'y': 117,
                     'max_width': 245,
@@ -552,7 +556,7 @@ def generar_todos_certificados():
                 'nombre': {
                     'font_family': 'Trebuchet',
                     'font_size': 29,
-                    'color': '#000000', #004064
+                    'color': '#000000',
                     'x': 148,
                     'y': 75,
                     'max_width': 245,
@@ -584,7 +588,7 @@ def generar_todos_certificados():
                 'grupo_1': 'fondo_1',  # Progresiva
                 'grupo_2': 'fondo_2',  # Participación Nota < 13
                 'grupo_3': 'fondo_3',  # Base - Nota ≥ 13 y Grado = 1P-3P
-                'grupo_4': 'fondo_4'  # Base - Nota ≥ 13 y Grado = 4P-5S
+                'grupo_4': 'fondo_4'   # Base - Nota ≥ 13 y Grado = 4P-5S
             }
 
             for grupo_nombre, grupo_df in st.session_state.grupos.items():
@@ -625,11 +629,15 @@ def generar_todos_certificados():
 st.set_page_config(page_title="Generador de Certificados", layout="centered")
 st.title("🎓 Generador de Certificados PDF con Plantillas Automáticas")
 
+# Variable de estado para controlar el procesamineto del archivo
+if 'archivo_procesado' not in st.session_state:
+    st.session_state.archivo_procesado = False
+
 # Preprocesamiento del Excel
 st.header("📤 Subir y procesar archivo Excel")
 uploaded_file = st.file_uploader("Selecciona un archivo Excel", type=["xlsx"])
 
-if uploaded_file:
+if uploaded_file and not st.session_state.archivo_procesado:
     st.subheader("📊 Vista previa del archivo original")
     df_original = pd.read_excel(uploaded_file)
     st.write(f"**Dimensiones originales:** {df_original.shape[0]} filas x {df_original.shape[1]} columnas")
@@ -637,7 +645,7 @@ if uploaded_file:
     st.dataframe(df_original.head(15))
 
     # Procesar automáticamente el archivo
-    with st.spinner("Procesando archivo..."):
+    with st.spinner("Procesando archivo y generando certificados"):
         df_procesado, exito, mensaje = procesar_excel_inicial(uploaded_file)
         
         if exito:
@@ -663,10 +671,15 @@ if uploaded_file:
             st.session_state.grupos = clasificar_estudiantes_por_nota(st.session_state.df_procesado, nombre_archivo)
             
             # Generar certificados automáticamente
-            with st.spinner("Generando certificados..."):
-                generar_todos_certificados()
+            generar_todos_certificados()
+
+            # Variable de procesamiento activada
+            st.session_state.archivo_procesado = True
         else:
             st.error(mensaje)
+
+elif uploaded_file and st.session_state.archivo_procesado:
+    st.success("✅ Archivo ya procesado. Los certificados están listos para descargar.")
 
 # Mostrar botón de descarga si los certificados fueron generados
 if st.session_state.certificados_generados and st.session_state.zip_buffer:
@@ -686,3 +699,5 @@ if st.session_state.certificados_generados and st.session_state.zip_buffer:
     )
 elif not uploaded_file:
     st.info("👆 Sube un archivo Excel para generar los certificados automáticamente.")
+    # Resetear el estado
+    st.session_state.archivo_procesado = False
