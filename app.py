@@ -170,7 +170,7 @@ def clasificar_estudiantes_por_nota(df, nombre_archivo):
 
         grupos['grupo_3'] = df_nota_alta[df_nota_alta['grado'].str.lower().str.strip().isin(['1p', '2p', '3p'])].copy()
         grupos['grupo_4'] = df_nota_alta[
-            df_nota_alta['grado'].str.lower().str.strip().isin(['4p', '5p', '1s', '2s', '3s', '4s', '5s'])].copy()
+            df_nota_alta['grado'].str.lower().str.strip().isin(['4p', '5p', '6p', '1s', '2s', '3s', '4s', '5s'])].copy()
 
     return grupos
 
