@@ -138,9 +138,9 @@ def cargar_plantillas():
 def clasificar_estudiantes_por_nota(df, nombre_archivo):
     grupos = {
         'grupo_1': pd.DataFrame(),  # Progresivo
-        'grupo_2': pd.DataFrame(),  # Nota < 13 / Participación
-        'grupo_3': pd.DataFrame(),  # Nota ≥ 13 y Grado = v1
-        'grupo_4': pd.DataFrame()   # Nota ≥ 13 y Grado = v2
+        'grupo_2': pd.DataFrame(),  # Nota < 12.5 / Participación
+        'grupo_3': pd.DataFrame(),  # Nota ≥ 12.5 y Grado = v1
+        'grupo_4': pd.DataFrame()   # Nota ≥ 12.5 y Grado = v2
     }
 
     if 'nota final' not in df.columns:
@@ -162,11 +162,11 @@ def clasificar_estudiantes_por_nota(df, nombre_archivo):
     else:
         df['nota_final_num'] = pd.to_numeric(df['nota final'], errors='coerce')
 
-        # Grupo 2: Nota < 13 - Participación
-        grupos['grupo_2'] = df[df['nota_final_num'] < 13].copy()
+        # Grupo 2: Nota < 12.5 - Participación
+        grupos['grupo_2'] = df[df['nota_final_num'] < 12.5].copy()
 
-        # Grupos 3 y 4: Nota ≥ 13
-        df_nota_alta = df[df['nota_final_num'] >= 13].copy()
+        # Grupos 3 y 4: Nota ≥ 12.5
+        df_nota_alta = df[df['nota_final_num'] >= 12.5].copy()
 
         grupos['grupo_3'] = df_nota_alta[df_nota_alta['grado'].str.lower().str.strip().isin(['1p', '2p', '3p'])].copy()
         grupos['grupo_4'] = df_nota_alta[
@@ -586,9 +586,9 @@ def generar_todos_certificados():
             # Mapeo de grupos a plantillas
             mapeo_plantillas = {
                 'grupo_1': 'fondo_1',  # Progresiva
-                'grupo_2': 'fondo_2',  # Participación Nota < 13
-                'grupo_3': 'fondo_3',  # Base - Nota ≥ 13 y Grado = 1P-3P
-                'grupo_4': 'fondo_4'   # Base - Nota ≥ 13 y Grado = 4P-5S
+                'grupo_2': 'fondo_2',  # Participación Nota < 12.5
+                'grupo_3': 'fondo_3',  # Base - Nota ≥ 12.5 y Grado = 1P-3P
+                'grupo_4': 'fondo_4'   # Base - Nota ≥ 12.5 y Grado = 4P-5S
             }
 
             for grupo_nombre, grupo_df in st.session_state.grupos.items():
